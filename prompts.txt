@@ -1,0 +1,42 @@
+I want to build a small browser game prototype called Villa Manager.
+
+Goal:
+Create a playable text-first management game inspired by reality dating-show island dynamics, but do not use any real Love Island names, branding, logos, catchphrases, or protected IP.
+
+Tech:
+Use Next.js or React with TypeScript.
+Keep it frontend-only for now.
+Use localStorage for save state.
+No backend, no auth, no database.
+
+Prototype scope:
+- 4 islanders
+- Each islander has: name, charm, loyalty, drama, strategy, mood
+- Player manages a 7-day season
+- Each day the player chooses one action:
+  1. Send two islanders on a date
+  2. Host a challenge
+  3. Upgrade the villa
+  4. Stir the pot
+- Actions affect:
+  - ratings
+  - money
+  - islander relationships
+  - drama
+  - public approval
+- Show a daily event summary after each action
+- End the game after day 7 with a final score and season recap
+
+UI:
+- Fun, clean, colorful browser UI
+- Cards for islanders
+- Buttons for actions
+- A game log
+- Restart button
+
+Please start by:
+1. Creating the project structure
+2. Implementing the game state model
+3. Building the first playable loop
+4. Keeping code simple and readable
+5. Explaining how to run it locally
