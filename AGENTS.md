@@ -27,7 +27,7 @@ Do not commit:
 ## Product Direction
 
 Text-first management game about fictional reality dating-show island dynamics.
-The player manages a 7-day season, choosing one action per day:
+The player manages a 14-day season, choosing one action per day:
 
 - Send two islanders on a date
 - Host a challenge

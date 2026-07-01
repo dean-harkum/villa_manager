@@ -1,10 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { CSSProperties, useEffect, useMemo, useState } from "react";
 import {
   ActionType,
   GameState,
+  SEASON_LENGTH,
   calculateFinalScore,
+  createSeasonRecap,
   createInitialGameState,
+  hairColors,
+  hairStyles,
+  hydrateGameState,
+  outfitColors,
   playAction,
+  skinTones,
+  updateIslanderLook,
 } from "./game";
 
 const SAVE_KEY = "villa-manager-save-v1";
@@ -16,7 +24,7 @@ const actionCopy: Record<ActionType, { label: string; detail: string }> = {
   },
   challenge: {
     label: "Host a challenge",
-    detail: "Boosts ratings and cash, but competitive energy can raise drama.",
+    detail: "The top strategist leads, while every islander gets pulled into the spectacle.",
   },
   upgrade: {
     label: "Upgrade the villa",
@@ -24,14 +32,14 @@ const actionCopy: Record<ActionType, { label: string; detail: string }> = {
   },
   stir: {
     label: "Stir the pot",
-    detail: "Creates drama for ratings and money, at the cost of approval.",
+    detail: "The highest-drama islander targets someone unpredictable.",
   },
 };
 
 export function App() {
   const [state, setState] = useState<GameState>(() => {
     const saved = window.localStorage.getItem(SAVE_KEY);
-    return saved ? (JSON.parse(saved) as GameState) : createInitialGameState();
+    return saved ? hydrateGameState(JSON.parse(saved) as GameState) : createInitialGameState();
   });
   const [firstPick, setFirstPick] = useState("maya");
   const [secondPick, setSecondPick] = useState("rio");
@@ -41,6 +49,7 @@ export function App() {
   }, [state]);
 
   const finalScore = useMemo(() => calculateFinalScore(state), [state]);
+  const seasonRecap = useMemo(() => createSeasonRecap(state), [state]);
   const selectedPairIsValid = firstPick !== secondPick;
 
   function handleAction(action: ActionType) {
@@ -59,7 +68,7 @@ export function App() {
     <main className="app-shell">
       <section className="hero">
         <div>
-          <p className="eyebrow">7-day season prototype</p>
+          <p className="eyebrow">{SEASON_LENGTH}-day season prototype</p>
           <h1>Villa Manager</h1>
           <p className="intro">
             Balance chemistry, drama, cash, and audience approval as four fictional islanders chase a
@@ -72,7 +81,7 @@ export function App() {
       </section>
 
       <section className="dashboard" aria-label="Season stats">
-        <Stat label="Day" value={state.isComplete ? "Finale" : `${state.day} / 7`} />
+        <Stat label="Day" value={state.isComplete ? "Finale" : `${state.day} / ${SEASON_LENGTH}`} />
         <Stat label="Ratings" value={state.ratings} />
         <Stat label="Money" value={`$${state.money}`} />
         <Stat label="Drama" value={state.drama} />
@@ -88,6 +97,37 @@ export function App() {
             The season wrapped with ratings at {state.ratings}, public approval at {state.publicApproval},
             drama at {state.drama}, and a level {state.villaLevel} villa.
           </p>
+          <div className="recap-grid">
+            <article>
+              <span>Happiest islander{seasonRecap.happiestIslanders.length > 1 ? "s" : ""}</span>
+              <strong>{seasonRecap.happiestIslanders.join(", ")}</strong>
+              <p>Mood finished at {seasonRecap.happiestMood}.</p>
+            </article>
+            <article>
+              <span>Best strategist{seasonRecap.bestStrategists.length > 1 ? "s" : ""}</span>
+              <strong>{seasonRecap.bestStrategists.join(", ")}</strong>
+              <p>Strategy rating: {seasonRecap.bestStrategy}.</p>
+            </article>
+            <article>
+              <span>Most drama-riddled</span>
+              <strong>{seasonRecap.highestDramaIslanders.join(", ")}</strong>
+              <p>Drama rating: {seasonRecap.highestDrama}.</p>
+            </article>
+            <article>
+              <span>Perfect relationships</span>
+              {seasonRecap.perfectRelationships.length > 0 ? (
+                <ul>
+                  {seasonRecap.perfectRelationships.map((relationship) => (
+                    <li key={`${relationship.firstName}-${relationship.secondName}`}>
+                      {relationship.firstName} and {relationship.secondName}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p>No relationships reached 100 this season.</p>
+              )}
+            </article>
+          </div>
         </section>
       ) : (
         <section className="control-panel">
@@ -133,9 +173,76 @@ export function App() {
       <section className="islander-grid" aria-label="Islanders">
         {state.islanders.map((islander) => (
           <article className="islander-card" key={islander.id}>
+            <div
+              className={`avatar-scene hair-${islander.look.hairStyle} ${
+                isFeminineIslander(islander.id) ? "is-feminine" : ""
+              }`}
+              style={
+                {
+                  "--skin": islander.look.skin,
+                  "--hair": islander.look.hair,
+                  "--outfit": islander.look.outfit,
+                } as CSSProperties
+              }
+            >
+              <div className="mood-bubble" aria-label={`Mood ${islander.mood}`}>
+                {getMoodEmoji(islander.mood)}
+              </div>
+              <div className="avatar">
+                <div className="avatar-hair" />
+                <div className="avatar-head">
+                  <div className="avatar-eyes" />
+                  <div className={`avatar-mouth ${getMoodClass(islander.mood)}`} />
+                </div>
+                <div className="avatar-neck" />
+                <div className="avatar-body" />
+              </div>
+            </div>
             <div className="card-topline">
-              <h2>{islander.name}</h2>
-              <span>Mood {islander.mood}</span>
+              <div>
+                <h2>{islander.name}</h2>
+                <p>{islander.look.vibe}</p>
+              </div>
+              <span>{getMoodLabel(islander.mood)} {islander.mood}</span>
+            </div>
+            <div className="look-editor" aria-label={`${islander.name} appearance controls`}>
+              <label>
+                Hair
+                <select
+                  value={islander.look.hairStyle}
+                  onChange={(event) =>
+                    setState((current) =>
+                      updateIslanderLook(current, islander.id, {
+                        hairStyle: event.target.value as typeof islander.look.hairStyle,
+                      }),
+                    )
+                  }
+                >
+                  {hairStyles.map((style) => (
+                    <option key={style} value={style}>
+                      {style}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Swatches
+                label="Outfit"
+                colors={outfitColors}
+                selected={islander.look.outfit}
+                onPick={(outfit) => setState((current) => updateIslanderLook(current, islander.id, { outfit }))}
+              />
+              <Swatches
+                label="Hair color"
+                colors={hairColors}
+                selected={islander.look.hair}
+                onPick={(hair) => setState((current) => updateIslanderLook(current, islander.id, { hair }))}
+              />
+              <Swatches
+                label="Skin tone"
+                colors={skinTones}
+                selected={islander.look.skin}
+                onPick={(skin) => setState((current) => updateIslanderLook(current, islander.id, { skin }))}
+              />
             </div>
             <div className="trait-grid">
               <Trait label="Charm" value={islander.charm} />
@@ -174,6 +281,91 @@ export function App() {
       </section>
     </main>
   );
+}
+
+function Swatches({
+  label,
+  colors,
+  selected,
+  onPick,
+}: {
+  label: string;
+  colors: string[];
+  selected: string;
+  onPick: (color: string) => void;
+}) {
+  return (
+    <div className="swatch-field">
+      <span>{label}</span>
+      <div className="swatch-row">
+        {colors.map((color) => (
+          <button
+            key={color}
+            className={color === selected ? "swatch selected" : "swatch"}
+            style={{ background: color }}
+            aria-label={`${label} ${color}`}
+            onClick={() => onPick(color)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function getMoodEmoji(mood: number) {
+  if (mood >= 80) {
+    return "🤩";
+  }
+
+  if (mood >= 60) {
+    return "😊";
+  }
+
+  if (mood >= 40) {
+    return "😐";
+  }
+
+  if (mood >= 20) {
+    return "😟";
+  }
+
+  return "😭";
+}
+
+function getMoodLabel(mood: number) {
+  if (mood >= 80) {
+    return "Delighted";
+  }
+
+  if (mood >= 60) {
+    return "Happy";
+  }
+
+  if (mood >= 40) {
+    return "Fine";
+  }
+
+  if (mood >= 20) {
+    return "Stressed";
+  }
+
+  return "Crushed";
+}
+
+function getMoodClass(mood: number) {
+  if (mood >= 60) {
+    return "happy";
+  }
+
+  if (mood >= 40) {
+    return "neutral";
+  }
+
+  return "sad";
+}
+
+function isFeminineIslander(islanderId: string) {
+  return islanderId === "maya" || islanderId === "nina";
 }
 
 function Stat({ label, value }: { label: string; value: string | number }) {

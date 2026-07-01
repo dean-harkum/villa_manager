@@ -1,0 +1,39 @@
+name: Discord Notify
+
+on:
+  push:
+    branches:
+      - "main"
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send Discord Embed
+        run: |
+          jq -n \
+            --arg repo "${{ github.repository }}" \
+            --arg actor "${{ github.actor }}" \
+            --arg msg "${{ github.event.head_commit.message || github.event.pull_request.title }}" \
+            --arg url "https://github.com/${{ github.repository }}/commit/${{ github.sha }}" \
+            --arg ts "${{ github.event.head_commit.timestamp }}" \
+          '{
+            username: "GitHub Bot",
+            embeds: [{
+              title: "🚀 New Commit Pushed",
+              color: 5814783,
+              fields: [
+                {name: "Repository", value: $repo, inline: true},
+                {name: "Author", value: $actor, inline: true},
+                {name: "Message", value: $msg},
+                {name: "Commit", value: $url}
+              ],
+              timestamp: $ts
+            }]
+          }' > payload.json
+
+          curl -H "Content-Type: application/json" \
+            -X POST \
+            --data-binary @payload.json \
+            ${{ secrets.DISCORD_WEBHOOK_URL }}
